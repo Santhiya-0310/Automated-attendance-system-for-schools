@@ -1,2 +1,3 @@
-# Automated-attendance-system-for-schools
-Web-based attendance management system for rural schools — one-tap roll call, student/teacher/class management, and attendance reports. Built with HTML/CSS/JS frontend and designed for low-infrastructure deployment.
+A lightweight, low-infrastructure web application that replaces the paper attendance register with a fast digital roll call. Teachers can mark a full class present/absent in under two minutes, while administrators get instant dashboards, class-wise reports, and CSV exports — all without needing a dedicated server or constant internet connection.
+Features: Role-based login (Admin/Teacher) · Student, Teacher & Class management · One-tap attendance marking · Reports with filtering & CSV export · Installable as a PWA on mobile
+Tech stack: HTML, CSS, JavaScript (frontend) · designed to pair with Spring Boot + MySQL for production deployment
