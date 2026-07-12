@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gramodaya Attendance · Automated Attendance System for Rural Schools</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#16324a;        /* deep school-ink navy */
+    --ink-2:#1f4864;
+    --paper:#f3f1e7;      /* slate-board chalk paper */
+    --card:#ffffff;
+    --line:#dcd7c6;
+    --marigold:#e8a13d;   /* signage marigold accent */
+    --marigold-deep:#c47f22;
+    --present:#3d8361;
+    --present-bg:#e6f3ec;
+    --absent:#c0503e;
+    --absent-bg:#faeae7;
+    --muted:#6b7a86;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.display{font-family:'Sora',system-ui,sans-serif;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  button{font-family:inherit;cursor:pointer;}
+  input,select{font-family:inherit;}
+
+  /* ---------- Login ---------- */
+  #loginScreen{
+    min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background:
+      radial-gradient(circle at 12% 18%, rgba(232,161,61,0.16) 0, transparent 45%),
+      radial-gradient(circle at 88% 82%, rgba(61,131,97,0.14) 0, transparent 45%),
+      var(--ink);
+    padding:24px;
+  }
+  .login-card{
+    background:var(--paper);
+    border-radius:20px;
+    max-width:880px;width:100%;
+    display:grid;grid-template-columns:1.1fr 1fr;
+    overflow:hidden;
+    box-shadow:0 30px 60px -20px rgba(0,0,0,0.5);
+  }
+  .login-side{
+    background:linear-gradient(160deg,var(--ink) 0%,var(--ink-2) 100%);
+    color:#fff;padding:44px 36px;position:relative;overflow:hidden;
+  }
+  .login-side::after{
+    content:"";position:absolute;right:-60px;bottom:-60px;width:220px;height:220px;
+    border-radius:50%;background:radial-gradient(circle,rgba(232,161,61,0.35),transparent 70%);
+  }
+  .roll-mark{
+    display:inline-flex;align-items:center;gap:8px;
+    font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.14em;
+    color:var(--marigold);text-transform:uppercase;margin-bottom:22px;
+  }
+  .roll-mark::before{content:"●";color:var(--present);}
+  .login-side h1{font-size:28px;line-height:1.25;margin:0 0 14px;font-weight:700;}
+  .login-side p{color:#c9d6dd;font-size:14.5px;line-height:1.6;margin:0 0 26px;}
+  .stat-row{display:flex;gap:18px;margin-top:auto;position:relative;z-index:1;}
+  .stat-row div b{display:block;font-family:'Sora';font-size:20px;color:var(--marigold);}
+  .stat-row div span{font-size:11.5px;color:#a9bac4;}
+  .login-form{padding:44px 40px;display:flex;flex-direction:column;justify-content:center;}
+  .login-form h2{margin:0 0 4px;font-size:20px;}
+  .login-form .sub{color:var(--muted);font-size:13px;margin:0 0 26px;}
+  .field{margin-bottom:16px;}
+  .field label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-2);margin-bottom:6px;}
+  .field input,.field select{
+    width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:10px;
+    font-size:14px;background:#fff;color:var(--ink);outline:none;transition:border-color .15s;
+  }
+  .field input:focus,.field select:focus{border-color:var(--marigold-deep);}
+  .role-toggle{display:flex;gap:8px;margin-bottom:18px;}
+  .role-toggle button{
+    flex:1;padding:9px;border-radius:9px;border:1.5px solid var(--line);background:#fff;
+    font-size:12.5px;font-weight:600;color:var(--muted);
+  }
+  .role-toggle button.active{border-color:var(--ink);background:var(--ink);color:#fff;}
+  .btn-primary{
+    background:var(--marigold-deep);color:#fff;border:none;border-radius:10px;
+    padding:12px;font-weight:700;font-size:14px;margin-top:4px;
+    box-shadow:0 8px 16px -8px rgba(196,127,34,0.6);
+  }
+  .btn-primary:hover{background:#a86618;}
+  .hint{margin-top:16px;font-size:11.5px;color:var(--muted);background:#fff;border:1px dashed var(--line);border-radius:8px;padding:9px 11px;}
+  .hint b{color:var(--ink-2);}
+  .login-err{color:var(--absent);font-size:12.5px;margin:-6px 0 12px;display:none;}
+
+  /* ---------- Shell ---------- */
+  #appShell{display:none;min-height:100vh;grid-template-columns:230px 1fr;}
+  #appShell.show{display:grid;}
+  aside{
+    background:var(--ink);color:#dce7ec;padding:22px 16px;display:flex;flex-direction:column;
+    position:sticky;top:0;height:100vh;
+  }
+  .brand{display:flex;align-items:center;gap:10px;padding:0 8px 20px;border-bottom:1px solid rgba(255,255,255,0.1);margin-bottom:16px;}
+  .brand .mark{width:34px;height:34px;border-radius:9px;background:var(--marigold);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--ink);font-family:'Sora';}
+  .brand div{line-height:1.2;}
+  .brand b{font-family:'Sora';font-size:14px;display:block;color:#fff;}
+  .brand span{font-size:10.5px;color:#8ea2ad;}
+  nav.side-nav{display:flex;flex-direction:column;gap:3px;flex:1;}
+  nav.side-nav button{
+    display:flex;align-items:center;gap:10px;text-align:left;background:none;border:none;color:#b8c8d0;
+    padding:10px 12px;border-radius:9px;font-size:13.5px;font-weight:500;
+  }
+  nav.side-nav button .ic{width:18px;text-align:center;}
+  nav.side-nav button:hover{background:rgba(255,255,255,0.06);color:#fff;}
+  nav.side-nav button.active{background:var(--marigold);color:var(--ink);font-weight:700;}
+  .side-foot{border-top:1px solid rgba(255,255,255,0.1);padding-top:14px;margin-top:10px;}
+  .side-user{display:flex;align-items:center;gap:9px;margin-bottom:10px;}
+  .side-user .av{width:30px;height:30px;border-radius:50%;background:var(--ink-2);border:1.5px solid var(--marigold);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;}
+  .side-user b{font-size:12.5px;display:block;color:#fff;}
+  .side-user span{font-size:10.5px;color:#8ea2ad;text-transform:capitalize;}
+  #logoutBtn{width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.14);color:#dce7ec;padding:8px;border-radius:8px;font-size:12.5px;}
+  #logoutBtn:hover{background:rgba(255,255,255,0.12);}
+
+  main{padding:28px 34px 60px;max-width:1180px;}
+  .page{display:none;}
+  .page.active{display:block;animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+  .page-head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:22px;flex-wrap:wrap;gap:10px;}
+  .page-head h1{font-size:22px;margin:0 0 4px;}
+  .page-head p{margin:0;color:var(--muted);font-size:13.5px;}
+  .eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--marigold-deep);margin:0 0 6px;}
+
+  /* cards / stats */
+  .grid-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:26px;}
+  .stat-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;}
+  .stat-card .label{font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;}
+  .stat-card .val{font-family:'Sora';font-size:28px;font-weight:700;margin:6px 0 2px;}
+  .stat-card .delta{font-size:11.5px;}
+  .stat-card.present .val{color:var(--present);}
+  .stat-card.absent .val{color:var(--absent);}
+  .stat-card.marigold .val{color:var(--marigold-deep);}
+
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin-bottom:20px;}
+  .panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;}
+  .panel-head h3{margin:0;font-size:15px;}
+
+  .two-col{display:grid;grid-template-columns:1.4fr 1fr;gap:20px;}
+  @media (max-width:980px){.two-col{grid-template-columns:1fr;} .grid-stats{grid-template-columns:repeat(2,1fr);}}
+
+  .notice{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px;}
+  .notice:last-child{border-bottom:none;}
+  .notice .dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex:none;}
+  .notice .dot.warn{background:var(--absent);}
+  .notice .dot.ok{background:var(--present);}
+  .notice small{color:var(--muted);display:block;margin-top:1px;}
+
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center;}
+  .toolbar input[type=text],.toolbar select,.toolbar input[type=date]{
+    padding:9px 12px;border:1.5px solid var(--line);border-radius:9px;font-size:13px;background:#fff;
+  }
+  .toolbar input[type=text]{flex:1;min-width:180px;}
+  .btn{padding:9px 15px;border-radius:9px;border:1.5px solid var(--line);background:#fff;font-size:13px;font-weight:600;color:var(--ink);}
+  .btn:hover{border-color:var(--ink);}
+  .btn.primary{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .btn.primary:hover{background:var(--ink-2);}
+  .btn.gold{background:var(--marigold-deep);color:#fff;border-color:var(--marigold-deep);}
+  .btn.gold:hover{background:#a86618;}
+  .btn.danger{color:var(--absent);border-color:var(--absent);background:#fff;}
+  .btn.danger:hover{background:var(--absent-bg);}
+  .btn.sm{padding:6px 10px;font-size:12px;}
+
+  table{width:100%;border-collapse:collapse;font-size:13.3px;}
+  th{text-align:left;padding:9px 10px;color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1.5px solid var(--line);cursor:pointer;user-select:none;white-space:nowrap;}
+  th:hover{color:var(--ink);}
+  td{padding:10px;border-bottom:1px solid var(--line);vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:700;}
+  .pill.present{background:var(--present-bg);color:var(--present);}
+  .pill.absent{background:var(--absent-bg);color:var(--absent);}
+  .row-actions{display:flex;gap:6px;}
+  .empty{text-align:center;color:var(--muted);padding:30px 10px;font-size:13.5px;}
+
+  /* modal */
+  .overlay{position:fixed;inset:0;background:rgba(22,50,74,0.55);display:none;align-items:center;justify-content:center;z-index:50;padding:20px;}
+  .overlay.show{display:flex;}
+  .modal{background:#fff;border-radius:16px;padding:26px 26px 20px;max-width:480px;width:100%;max-height:88vh;overflow:auto;}
+  .modal h3{margin:0 0 16px;font-size:16px;}
+  .modal .field{margin-bottom:13px;}
+  .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;}
+
+  /* attendance roll call */
+  .roll-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
+  .roll-chip{
+    border:1.5px solid var(--line);border-radius:11px;padding:10px 12px;background:#fff;
+    display:flex;flex-direction:column;gap:6px;transition:.15s;
+  }
+  .roll-chip .name{font-size:13px;font-weight:600;}
+  .roll-chip .id{font-size:10.5px;color:var(--muted);font-family:'JetBrains Mono',monospace;}
+  .roll-toggle{display:flex;gap:6px;}
+  .roll-toggle button{flex:1;padding:6px 0;border-radius:7px;border:1.5px solid var(--line);background:#fff;font-size:11.5px;font-weight:700;color:var(--muted);}
+  .roll-toggle button.p.on{background:var(--present);border-color:var(--present);color:#fff;}
+  .roll-toggle button.a.on{background:var(--absent);border-color:var(--absent);color:#fff;}
+  .roll-chip.marked-p{border-color:var(--present);}
+  .roll-chip.marked-a{border-color:var(--absent);}
+
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:#fff;padding:12px 18px;border-radius:10px;font-size:13px;box-shadow:0 12px 24px -8px rgba(0,0,0,0.4);z-index:100;display:flex;align-items:center;gap:8px;opacity:0;transform:translateY(8px);pointer-events:none;transition:.25s;}
+  .toast.show{opacity:1;transform:none;}
+  .toast .dot{width:7px;height:7px;border-radius:50%;background:var(--marigold);}
+
+  ::selection{background:var(--marigold);color:var(--ink);}
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-side">
+      <div class="roll-mark">Roll Call · Live</div>
+      <h1>Automated Attendance System for Rural Schools</h1>
+      <p>Replace the paper register with a two-tap roll call. Built for teachers who need speed, and administrators who need clean records — no heavy infrastructure required.</p>
+      <div class="stat-row">
+        <div><b>500+</b><span>students / school</span></div>
+        <div><b>95%+</b><span>accuracy target</span></div>
+        <div><b>80%</b><span>less admin time</span></div>
+      </div>
+    </div>
+    <div class="login-form">
+      <h2>Sign in</h2>
+      <p class="sub">Access the attendance dashboard for your school.</p>
+      <div class="role-toggle">
+        <button type="button" class="active" data-role="admin" onclick="setRole('admin')">Administrator</button>
+        <button type="button" data-role="teacher" onclick="setRole('teacher')">Teacher</button>
+      </div>
+      <div class="field">
+        <label>Username</label>
+        <input type="text" id="loginUser" placeholder="e.g. admin">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="loginPass" placeholder="••••••••">
+      </div>
+      <p class="login-err" id="loginErr">Invalid username or password. Try again.</p>
+      <button class="btn-primary" onclick="attemptLogin()">Log in</button>
+      <div class="hint"><b>Demo credentials —</b> Admin: <span class="mono">admin / admin123</span> &nbsp;|&nbsp; Teacher: <span class="mono">rmurugan / teach123</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= APP SHELL ================= -->
+<div id="appShell">
+  <aside>
+    <div class="brand">
+      <div class="mark">GA</div>
+      <div><b>Gramodaya</b><span>Attendance System</span></div>
+    </div>
+    <nav class="side-nav" id="sideNav">
+      <button data-page="dashboard" class="active"><span class="ic">◆</span> Dashboard</button>
+      <button data-page="attendance"><span class="ic">✓</span> Mark Attendance</button>
+      <button data-page="students"><span class="ic">▤</span> Students</button>
+      <button data-page="teachers" data-admin-only><span class="ic">▥</span> Teachers</button>
+      <button data-page="classes" data-admin-only><span class="ic">▦</span> Classes</button>
+      <button data-page="reports"><span class="ic">▧</span> Reports</button>
+    </nav>
+    <div class="side-foot">
+      <div class="side-user">
+        <div class="av" id="userAv">A</div>
+        <div><b id="userName">Administrator</b><span id="userRole">admin</span></div>
+      </div>
+      <button id="logoutBtn" onclick="logout()">Log out</button>
+    </div>
+  </aside>
+
+  <main>
+    <!-- ---- DASHBOARD ---- -->
+    <section class="page active" id="page-dashboard">
+      <div class="page-head">
+        <div>
+          <p class="eyebrow" id="todayDate">Today</p>
+          <h1>Dashboard</h1>
+          <p>Live snapshot of attendance across the school.</p>
+        </div>
+        <button class="btn gold" onclick="go('attendance')">Mark today's attendance →</button>
+      </div>
+      <div class="grid-stats">
+        <div class="stat-card"><div class="label">Total Students</div><div class="val" id="statTotal">0</div><div class="delta">across all classes</div></div>
+        <div class="stat-card present"><div class="label">Present Today</div><div class="val" id="statPresent">0</div><div class="delta">marked so far</div></div>
+        <div class="stat-card absent"><div class="label">Absent Today</div><div class="val" id="statAbsent">0</div><div class="delta">needs follow-up</div></div>
+        <div class="stat-card marigold"><div class="label">Attendance Rate</div><div class="val" id="statRate">0%</div><div class="delta">today</div></div>
+      </div>
+      <div class="two-col">
+        <div class="panel">
+          <div class="panel-head"><h3>Class-wise attendance today</h3></div>
+          <table><thead><tr><th>Class</th><th>Teacher</th><th>Present</th><th>Absent</th><th>Rate</th></tr></thead>
+          <tbody id="classSummaryBody"></tbody></table>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Notifications</h3></div>
+          <div id="notifList"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---- ATTENDANCE ---- -->
+    <section class="page" id="page-attendance">
+      <div class="page-head">
+        <div><p class="eyebrow">Roll call</p><h1>Mark Attendance</h1><p>Select a class and date, then tap Present or Absent for each student.</p></div>
+      </div>
+      <div class="toolbar">
+        <select id="attClass" onchange="renderRollCall()"></select>
+        <input type="date" id="attDate" onchange="renderRollCall()">
+        <button class="btn" onclick="markAll('P')">Mark all present</button>
+        <button class="btn" onclick="markAll('A')">Mark all absent</button>
+        <span style="flex:1"></span>
+        <button class="btn gold" onclick="saveAttendance()">Save attendance</button>
+      </div>
+      <div class="panel">
+        <div class="roll-grid" id="rollGrid"></div>
+      </div>
+    </section>
+
+    <!-- ---- STUDENTS ---- -->
+    <section class="page" id="page-students">
+      <div class="page-head">
+        <div><p class="eyebrow">Registry</p><h1>Students</h1><p>Add, search, and manage student records.</p></div>
+        <button class="btn primary" onclick="openStudentModal()">+ Add student</button>
+      </div>
+      <div class="toolbar">
+        <input type="text" id="studentSearch" placeholder="Search by name or ID..." oninput="renderStudents()">
+        <select id="studentClassFilter" onchange="renderStudents()"></select>
+      </div>
+      <div class="panel">
+        <table>
+          <thead><tr>
+            <th onclick="sortStudents('id')">ID</th>
+            <th onclick="sortStudents('name')">Name</th>
+            <th>Gender</th><th>Class</th><th>Parent</th><th>Phone</th><th></th>
+          </tr></thead>
+          <tbody id="studentsBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ---- TEACHERS ---- -->
+    <section class="page" id="page-teachers">
+      <div class="page-head">
+        <div><p class="eyebrow">Staff</p><h1>Teachers</h1><p>Manage teaching staff and subject assignments.</p></div>
+        <button class="btn primary" onclick="openTeacherModal()">+ Add teacher</button>
+      </div>
+      <div class="panel">
+        <table>
+          <thead><tr><th>ID</th><th>Name</th><th>Subject</th><th>Email</th><th>Phone</th><th></th></tr></thead>
+          <tbody id="teachersBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ---- CLASSES ---- -->
+    <section class="page" id="page-classes">
+      <div class="page-head">
+        <div><p class="eyebrow">Structure</p><h1>Classes</h1><p>Define classes, sections, and assigned teacher.</p></div>
+        <button class="btn primary" onclick="openClassModal()">+ Add class</button>
+      </div>
+      <div class="panel">
+        <table>
+          <thead><tr><th>ID</th><th>Class</th><th>Section</th><th>Teacher</th><th>Students</th><th></th></tr></thead>
+          <tbody id="classesBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ---- REPORTS ---- -->
+    <section class="page" id="page-reports">
+      <div class="page-head">
+        <div><p class="eyebrow">Insight</p><h1>Reports</h1><p>Filter attendance history by class and date, then export.</p></div>
+        <button class="btn" onclick="exportCsv()">⬇ Export CSV</button>
+      </div>
+      <div class="toolbar">
+        <select id="repClass" onchange="renderReports()"></select>
+        <input type="date" id="repFrom" onchange="renderReports()">
+        <input type="date" id="repTo" onchange="renderReports()">
+        <select id="repStatus" onchange="renderReports()">
+          <option value="all">All statuses</option>
+          <option value="Present">Present only</option>
+          <option value="Absent">Absent only</option>
+        </select>
+      </div>
+      <div class="grid-stats" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px;">
+        <div class="stat-card present"><div class="label">Present (filtered)</div><div class="val" id="repPresentCount">0</div></div>
+        <div class="stat-card absent"><div class="label">Absent (filtered)</div><div class="val" id="repAbsentCount">0</div></div>
+        <div class="stat-card marigold"><div class="label">Attendance Rate</div><div class="val" id="repRate">0%</div></div>
+      </div>
+      <div class="panel">
+        <table>
+          <thead><tr><th>Date</th><th>Student</th><th>Class</th><th>Status</th></tr></thead>
+          <tbody id="reportsBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ================= MODALS ================= -->
+<div class="overlay" id="studentModal">
+  <div class="modal">
+    <h3 id="studentModalTitle">Add student</h3>
+    <input type="hidden" id="sId">
+    <div class="field"><label>Full name</label><input type="text" id="sName"></div>
+    <div class="field"><label>Gender</label>
+      <select id="sGender"><option>Female</option><option>Male</option><option>Other</option></select>
+    </div>
+    <div class="field"><label>Date of birth</label><input type="date" id="sDob"></div>
+    <div class="field"><label>Class</label><select id="sClass"></select></div>
+    <div class="field"><label>Parent / guardian name</label><input type="text" id="sParent"></div>
+    <div class="field"><label>Phone number</label><input type="text" id="sPhone" placeholder="10-digit number"></div>
+    <div class="field"><label>Address</label><input type="text" id="sAddress"></div>
+    <p class="login-err" id="sErr" style="display:none;">Please fill all required fields correctly.</p>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('studentModal')">Cancel</button>
+      <button class="btn primary" onclick="saveStudent()">Save student</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="teacherModal">
+  <div class="modal">
+    <h3 id="teacherModalTitle">Add teacher</h3>
+    <input type="hidden" id="tId">
+    <div class="field"><label>Full name</label><input type="text" id="tName"></div>
+    <div class="field"><label>Subject</label><input type="text" id="tSubject"></div>
+    <div class="field"><label>Email</label><input type="email" id="tEmail"></div>
+    <div class="field"><label>Phone number</label><input type="text" id="tPhone"></div>
+    <p class="login-err" id="tErr" style="display:none;">Please fill all required fields correctly.</p>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('teacherModal')">Cancel</button>
+      <button class="btn primary" onclick="saveTeacher()">Save teacher</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="classModal">
+  <div class="modal">
+    <h3 id="classModalTitle">Add class</h3>
+    <input type="hidden" id="cId">
+    <div class="field"><label>Class name</label><input type="text" id="cName" placeholder="e.g. Class 6"></div>
+    <div class="field"><label>Section</label><input type="text" id="cSection" placeholder="e.g. A"></div>
+    <div class="field"><label>Class teacher</label><select id="cTeacher"></select></div>
+    <p class="login-err" id="cErr" style="display:none;">Please fill all required fields.</p>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('classModal')">Cancel</button>
+      <button class="btn primary" onclick="saveClass()">Save class</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span class="dot"></span><span id="toastMsg">Saved</span></div>
+
+<script>
+/* ============================================================
+   Automated Attendance System for Rural Schools — demo app
+   In-memory data store (no backend required, matches the
+   project brief's "low-infrastructure" objective for a
+   classroom demo). All data resets on page reload by design.
+   ============================================================ */
+
+let selectedRole = 'admin';
+let currentUser = null;
+let sortState = {key:'id', dir:1};
+
+const USERS = {
+  admin:   {username:'admin',    password:'admin123', name:'Administrator', role:'admin'},
+  teacher: {username:'rmurugan', password:'teach123', name:'R. Murugan',    role:'teacher', teacherId:'T02'}
+};
+
+let teachers = [
+  {id:'T01', name:'Kavitha R', subject:'Mathematics', email:'kavitha.r@school.edu', phone:'9840012345'},
+  {id:'T02', name:'R. Murugan', subject:'Science', email:'r.murugan@school.edu', phone:'9840012346'},
+  {id:'T03', name:'Deepa S', subject:'English', email:'deepa.s@school.edu', phone:'9840012347'},
+];
+
+let classes = [
+  {id:'C01', name:'Class 6', section:'A', teacherId:'T01'},
+  {id:'C02', name:'Class 7', section:'A', teacherId:'T02'},
+  {id:'C03', name:'Class 8', section:'B', teacherId:'T03'},
+];
+
+let students = [
+  {id:'S001', name:'Arun Kumar', gender:'Male', dob:'2013-04-11', classId:'C01', parent:'Selvam K', phone:'9876543210', address:'Perambalur village'},
+  {id:'S002', name:'Priya Dharshini', gender:'Female', dob:'2013-06-02', classId:'C01', parent:'Rajesh M', phone:'9876543211', address:'Perambalur village'},
+  {id:'S003', name:'Mohammed Irfan', gender:'Male', dob:'2013-01-19', classId:'C01', parent:'Ismail A', phone:'9876543212', address:'Kottapalayam'},
+  {id:'S004', name:'Lakshmi Narayanan', gender:'Female', dob:'2013-09-23', classId:'C01', parent:'Narayanan S', phone:'9876543213', address:'Kottapalayam'},
+  {id:'S005', name:'Vignesh S', gender:'Male', dob:'2012-08-14', classId:'C02', parent:'Suresh P', phone:'9876543214', address:'Melpatti'},
+  {id:'S006', name:'Divya Bharathi', gender:'Female', dob:'2012-03-30', classId:'C02', parent:'Bharathi K', phone:'9876543215', address:'Melpatti'},
+  {id:'S007', name:'Karthik Raja', gender:'Male', dob:'2012-11-05', classId:'C02', parent:'Rajaram T', phone:'9876543216', address:'Melpatti'},
+  {id:'S008', name:'Nandhini V', gender:'Female', dob:'2012-07-17', classId:'C02', parent:'Vasu R', phone:'9876543217', address:'Sengapadai'},
+  {id:'S009', name:'Yuvaraj M', gender:'Male', dob:'2011-05-09', classId:'C03', parent:'Manikandan D', phone:'9876543218', address:'Sengapadai'},
+  {id:'S010', name:'Kaviya S', gender:'Female', dob:'2011-12-25', classId:'C03', parent:'Sathish Kumar', phone:'9876543219', address:'Sengapadai'},
+  {id:'S011', name:'Bala Murugan', gender:'Male', dob:'2011-02-14', classId:'C03', parent:'Murugesan V', phone:'9876543220', address:'Athimoor'},
+  {id:'S012', name:'Sowmiya R', gender:'Female', dob:'2011-10-08', classId:'C03', parent:'Ravi Shankar', phone:'9876543221', address:'Athimoor'},
+];
+
+// attendance records: {id, studentId, date:'YYYY-MM-DD', status:'Present'|'Absent'}
+let attendance = [];
+let idCounters = {student: 13, teacher: 4, class: 4, attendance: 1};
+
+function todayStr(){
+  const d = new Date();
+  return d.toISOString().slice(0,10);
+}
+function fmtDateLong(str){
+  const d = new Date(str+'T00:00:00');
+  return d.toLocaleDateString('en-IN', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+}
+function pad3(n, p){ return p + String(n).padStart(3,'0'); }
+
+/* seed a bit of attendance history for the last 5 school days so Reports/Dashboard aren't empty */
+(function seedAttendance(){
+  const days = [];
+  let d = new Date();
+  for(let i=0;i<6;i++){
+    const dd = new Date(d); dd.setDate(d.getDate()-i);
+    days.push(dd.toISOString().slice(0,10));
+  }
+  days.reverse();
+  days.forEach(dateStr=>{
+    students.forEach(s=>{
+      // ~92% present rate historically, deterministic-ish
+      const seed = (s.id.charCodeAt(3) + dateStr.charCodeAt(9)) % 10;
+      const status = seed === 0 ? 'Absent' : 'Present';
+      attendance.push({id:'A'+(idCounters.attendance++), studentId:s.id, date:dateStr, status});
+    });
+  });
+})();
+
+/* ---------------- Login ---------------- */
+function setRole(role){
+  selectedRole = role;
+  document.querySelectorAll('.role-toggle button').forEach(b=>b.classList.toggle('active', b.dataset.role===role));
+  const u = USERS[role];
+  document.getElementById('loginUser').placeholder = role==='admin' ? 'e.g. admin' : 'e.g. rmurugan';
+}
+function attemptLogin(){
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  const expected = USERS[selectedRole];
+  const err = document.getElementById('loginErr');
+  if(u === expected.username && p === expected.password){
+    currentUser = expected;
+    err.style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appShell').classList.add('show');
+    initApp();
+  } else {
+    err.style.display = 'block';
+  }
+}
+function logout(){
+  currentUser = null;
+  document.getElementById('appShell').classList.remove('show');
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+}
+
+/* ---------------- Navigation ---------------- */
+function go(page){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.querySelectorAll('#sideNav button').forEach(b=>b.classList.toggle('active', b.dataset.page===page));
+  if(page==='dashboard') renderDashboard();
+  if(page==='attendance') renderRollCall();
+  if(page==='students') renderStudents();
+  if(page==='teachers') renderTeachers();
+  if(page==='classes') renderClasses();
+  if(page==='reports') renderReports();
+}
+document.getElementById('sideNav').addEventListener('click', e=>{
+  const btn = e.target.closest('button[data-page]');
+  if(btn) go(btn.dataset.page);
+});
+
+function initApp(){
+  document.getElementById('userName').textContent = currentUser.name;
+  document.getElementById('userRole').textContent = currentUser.role;
+  document.getElementById('userAv').textContent = currentUser.name[0];
+  document.querySelectorAll('[data-admin-only]').forEach(el=>{
+    el.style.display = currentUser.role==='admin' ? '' : 'none';
+  });
+  document.getElementById('todayDate').textContent = 'Today · ' + fmtDateLong(todayStr());
+  populateClassSelects();
+  document.getElementById('attDate').value = todayStr();
+  document.getElementById('repFrom').value = attendance.length ? attendance[0].date : todayStr();
+  document.getElementById('repTo').value = todayStr();
+  go('dashboard');
+}
+
+function populateClassSelects(){
+  const opts = classes.map(c=>`<option value="${c.id}">${c.name} - ${c.section}</option>`).join('');
+  document.getElementById('attClass').innerHTML = opts;
+  document.getElementById('sClass').innerHTML = opts;
+  document.getElementById('repClass').innerHTML = '<option value="all">All classes</option>' + opts;
+  document.getElementById('studentClassFilter').innerHTML = '<option value="all">All classes</option>' + opts;
+  document.getElementById('cTeacher').innerHTML = teachers.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+  if(currentUser && currentUser.role==='teacher'){
+    const myClass = classes.find(c=>c.teacherId===currentUser.teacherId);
+    if(myClass){
+      document.getElementById('attClass').value = myClass.id;
+      document.getElementById('attClass').disabled = true;
+    }
+  }
+}
+
+function teacherName(id){ const t = teachers.find(x=>x.id===id); return t? t.name : '—'; }
+function className(id){ const c = classes.find(x=>x.id===id); return c ? `${c.name} - ${c.section}` : '—'; }
+function studentsInClass(classId){ return students.filter(s=>s.classId===classId); }
+
+/* ---------------- Toast ---------------- */
+function toast(msg){
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(()=>t.classList.remove('show'), 2400);
+}
+
+/* ---------------- Dashboard ---------------- */
+function renderDashboard(){
+  const today = todayStr();
+  const todays = attendance.filter(a=>a.date===today);
+  const present = todays.filter(a=>a.status==='Present').length;
+  const absent = todays.filter(a=>a.status==='Absent').length;
+  const marked = present+absent;
+  document.getElementById('statTotal').textContent = students.length;
+  document.getElementById('statPresent').textContent = present;
+  document.getElementById('statAbsent').textContent = absent;
+  document.getElementById('statRate').textContent = marked ? Math.round(present/marked*100)+'%' : '—';
+
+  const body = document.getElementById('classSummaryBody');
+  body.innerHTML = classes.map(c=>{
+    const roll = studentsInClass(c.id).map(s=>s.id);
+    const recs = todays.filter(a=>roll.includes(a.studentId));
+    const p = recs.filter(r=>r.status==='Present').length;
+    const a = recs.filter(r=>r.status==='Absent').length;
+    const rate = (p+a) ? Math.round(p/(p+a)*100) : null;
+    return `<tr>
+      <td><b>${c.name} - ${c.section}</b></td>
+      <td>${teacherName(c.teacherId)}</td>
+      <td>${p}</td>
+      <td>${a}</td>
+      <td>${rate===null ? '<span style="color:var(--muted)">not marked</span>' : rate+'%'}</td>
+    </tr>`;
+  }).join('');
+
+  const notifs = [];
+  todays.filter(a=>a.status==='Absent').forEach(a=>{
+    const s = students.find(x=>x.id===a.studentId);
+    if(s) notifs.push({type:'warn', text:`${s.name} marked absent today`, sub:`${className(s.classId)} · notify ${s.parent}`});
+  });
+  if(!notifs.length) notifs.push({type:'ok', text:'No absentee alerts yet today', sub:'Mark attendance to populate this feed'});
+  document.getElementById('notifList').innerHTML = notifs.slice(0,8).map(n=>`
+    <div class="notice"><span class="dot ${n.type}"></span>
+      <div>${n.text}<small>${n.sub}</small></div>
+    </div>`).join('');
+}
+
+/* ---------------- Attendance / Roll call ---------------- */
+let draftAttendance = {}; // studentId -> 'Present'|'Absent'
+
+function renderRollCall(){
+  const classId = document.getElementById('attClass').value;
+  const date = document.getElementById('attDate').value || todayStr();
+  const roll = studentsInClass(classId);
+  draftAttendance = {};
+  roll.forEach(s=>{
+    const existing = attendance.find(a=>a.studentId===s.id && a.date===date);
+    draftAttendance[s.id] = existing ? existing.status : null;
+  });
+  paintRollCall();
+}
+function paintRollCall(){
+  const classId = document.getElementById('attClass').value;
+  const roll = studentsInClass(classId);
+  const grid = document.getElementById('rollGrid');
+  if(!roll.length){ grid.innerHTML = '<p class="empty">No students in this class yet.</p>'; return; }
+  grid.innerHTML = roll.map(s=>{
+    const st = draftAttendance[s.id];
+    return `<div class="roll-chip ${st==='Present'?'marked-p':st==='Absent'?'marked-a':''}">
+      <div class="name">${s.name}</div>
+      <div class="id">${s.id}</div>
+      <div class="roll-toggle">
+        <button class="p ${st==='Present'?'on':''}" onclick="setDraft('${s.id}','Present')">Present</button>
+        <button class="a ${st==='Absent'?'on':''}" onclick="setDraft('${s.id}','Absent')">Absent</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function setDraft(studentId, status){
+  draftAttendance[studentId] = status;
+  paintRollCall();
+}
+function markAll(status){
+  const val = status==='P' ? 'Present' : 'Absent';
+  Object.keys(draftAttendance).forEach(id=>draftAttendance[id]=val);
+  paintRollCall();
+}
+function saveAttendance(){
+  const date = document.getElementById('attDate').value || todayStr();
+  let saved = 0;
+  Object.entries(draftAttendance).forEach(([studentId, status])=>{
+    if(!status) return;
+    const idx = attendance.findIndex(a=>a.studentId===studentId && a.date===date);
+    if(idx>-1){ attendance[idx].status = status; }
+    else { attendance.push({id:'A'+(idCounters.attendance++), studentId, date, status}); }
+    saved++;
+  });
+  toast(`Attendance saved for ${saved} student(s) on ${date}`);
+  renderDashboard();
+}
+
+/* ---------------- Students ---------------- */
+function renderStudents(){
+  const q = (document.getElementById('studentSearch').value||'').toLowerCase();
+  const cf = document.getElementById('studentClassFilter').value;
+  let rows = students.filter(s=>
+    (s.name.toLowerCase().includes(q) || s.id.toLowerCase().includes(q)) &&
+    (cf==='all' || s.classId===cf)
+  );
+  rows.sort((a,b)=>{
+    const A=(a[sortState.key]||'').toString().toLowerCase(), B=(b[sortState.key]||'').toString().toLowerCase();
+    return A<B ? -1*sortState.dir : A>B ? 1*sortState.dir : 0;
+  });
+  const body = document.getElementById('studentsBody');
+  if(!rows.length){ body.innerHTML = '<tr><td colspan="7" class="empty">No students match your search.</td></tr>'; return; }
+  body.innerHTML = rows.map(s=>`
+    <tr>
+      <td class="mono">${s.id}</td>
+      <td><b>${s.name}</b></td>
+      <td>${s.gender}</td>
+      <td>${className(s.classId)}</td>
+      <td>${s.parent}</td>
+      <td>${s.phone}</td>
+      <td class="row-actions">
+        <button class="btn sm" onclick="openStudentModal('${s.id}')">Edit</button>
+        <button class="btn sm danger" onclick="deleteStudent('${s.id}')">Delete</button>
+      </td>
+    </tr>`).join('');
+}
+function sortStudents(key){
+  sortState.dir = (sortState.key===key) ? -sortState.dir : 1;
+  sortState.key = key;
+  renderStudents();
+}
+function openStudentModal(id){
+  document.getElementById('sErr').style.display='none';
+  const s = students.find(x=>x.id===id);
+  document.getElementById('studentModalTitle').textContent = s ? 'Edit student' : 'Add student';
+  document.getElementById('sId').value = s ? s.id : '';
+  document.getElementById('sName').value = s ? s.name : '';
+  document.getElementById('sGender').value = s ? s.gender : 'Female';
+  document.getElementById('sDob').value = s ? s.dob : '';
+  document.getElementById('sClass').value = s ? s.classId : (classes[0] ? classes[0].id : '');
+  document.getElementById('sParent').value = s ? s.parent : '';
+  document.getElementById('sPhone').value = s ? s.phone : '';
+  document.getElementById('sAddress').value = s ? s.address : '';
+  document.getElementById('studentModal').classList.add('show');
+}
+function saveStudent(){
+  const name = document.getElementById('sName').value.trim();
+  const phone = document.getElementById('sPhone').value.trim();
+  if(!name || !/^[0-9]{10}$/.test(phone)){
+    document.getElementById('sErr').style.display='block';
+    return;
+  }
+  const id = document.getElementById('sId').value;
+  const data = {
+    name, gender: document.getElementById('sGender').value,
+    dob: document.getElementById('sDob').value,
+    classId: document.getElementById('sClass').value,
+    parent: document.getElementById('sParent').value.trim(),
+    phone, address: document.getElementById('sAddress').value.trim(),
+  };
+  if(id){
+    Object.assign(students.find(s=>s.id===id), data);
+    toast('Student updated');
+  } else {
+    const newId = pad3(idCounters.student++, 'S');
+    students.push({id:newId, ...data});
+    toast('Student added');
+  }
+  closeModal('studentModal');
+  renderStudents();
+  renderDashboard();
+}
+function deleteStudent(id){
+  if(!confirm('Delete this student and their attendance history?')) return;
+  students = students.filter(s=>s.id!==id);
+  attendance = attendance.filter(a=>a.studentId!==id);
+  renderStudents();
+  renderDashboard();
+  toast('Student deleted');
+}
+
+/* ---------------- Teachers ---------------- */
+function renderTeachers(){
+  const body = document.getElementById('teachersBody');
+  if(!teachers.length){ body.innerHTML = '<tr><td colspan="6" class="empty">No teachers yet.</td></tr>'; return; }
+  body.innerHTML = teachers.map(t=>`
+    <tr>
+      <td class="mono">${t.id}</td><td><b>${t.name}</b></td><td>${t.subject}</td><td>${t.email}</td><td>${t.phone}</td>
+      <td class="row-actions">
+        <button class="btn sm" onclick="openTeacherModal('${t.id}')">Edit</button>
+        <button class="btn sm danger" onclick="deleteTeacher('${t.id}')">Delete</button>
+      </td>
+    </tr>`).join('');
+}
+function openTeacherModal(id){
+  document.getElementById('tErr').style.display='none';
+  const t = teachers.find(x=>x.id===id);
+  document.getElementById('teacherModalTitle').textContent = t ? 'Edit teacher' : 'Add teacher';
+  document.getElementById('tId').value = t ? t.id : '';
+  document.getElementById('tName').value = t ? t.name : '';
+  document.getElementById('tSubject').value = t ? t.subject : '';
+  document.getElementById('tEmail').value = t ? t.email : '';
+  document.getElementById('tPhone').value = t ? t.phone : '';
+  document.getElementById('teacherModal').classList.add('show');
+}
+function saveTeacher(){
+  const name = document.getElementById('tName').value.trim();
+  const email = document.getElementById('tEmail').value.trim();
+  if(!name || !/^\S+@\S+\.\S+$/.test(email)){
+    document.getElementById('tErr').style.display='block';
+    return;
+  }
+  const id = document.getElementById('tId').value;
+  const data = {name, subject:document.getElementById('tSubject').value.trim(), email, phone:document.getElementById('tPhone').value.trim()};
+  if(id){ Object.assign(teachers.find(t=>t.id===id), data); toast('Teacher updated'); }
+  else { teachers.push({id: pad3(idCounters.teacher++, 'T'), ...data}); toast('Teacher added'); }
+  closeModal('teacherModal');
+  populateClassSelects();
+  renderTeachers();
+  renderClasses();
+}
+function deleteTeacher(id){
+  if(!confirm('Delete this teacher?')) return;
+  teachers = teachers.filter(t=>t.id!==id);
+  populateClassSelects();
+  renderTeachers();
+  renderClasses();
+  toast('Teacher deleted');
+}
+
+/* ---------------- Classes ---------------- */
+function renderClasses(){
+  const body = document.getElementById('classesBody');
+  if(!classes.length){ body.innerHTML = '<tr><td colspan="6" class="empty">No classes yet.</td></tr>'; return; }
+  body.innerHTML = classes.map(c=>`
+    <tr>
+      <td class="mono">${c.id}</td><td><b>${c.name}</b></td><td>${c.section}</td><td>${teacherName(c.teacherId)}</td>
+      <td>${studentsInClass(c.id).length}</td>
+      <td class="row-actions">
+        <button class="btn sm" onclick="openClassModal('${c.id}')">Edit</button>
+        <button class="btn sm danger" onclick="deleteClass('${c.id}')">Delete</button>
+      </td>
+    </tr>`).join('');
+}
+function openClassModal(id){
+  document.getElementById('cErr').style.display='none';
+  const c = classes.find(x=>x.id===id);
+  document.getElementById('classModalTitle').textContent = c ? 'Edit class' : 'Add class';
+  document.getElementById('cId').value = c ? c.id : '';
+  document.getElementById('cName').value = c ? c.name : '';
+  document.getElementById('cSection').value = c ? c.section : '';
+  document.getElementById('cTeacher').value = c ? c.teacherId : (teachers[0] ? teachers[0].id : '');
+  document.getElementById('classModal').classList.add('show');
+}
+function saveClass(){
+  const name = document.getElementById('cName').value.trim();
+  const section = document.getElementById('cSection').value.trim();
+  if(!name || !section){
+    document.getElementById('cErr').style.display='block';
+    return;
+  }
+  const id = document.getElementById('cId').value;
+  const data = {name, section, teacherId: document.getElementById('cTeacher').value};
+  if(id){ Object.assign(classes.find(c=>c.id===id), data); toast('Class updated'); }
+  else { classes.push({id: pad3(idCounters.class++, 'C'), ...data}); toast('Class added'); }
+  closeModal('classModal');
+  populateClassSelects();
+  renderClasses();
+  renderDashboard();
+}
+function deleteClass(id){
+  if(!confirm('Delete this class? Students in it will remain but show as unassigned.')) return;
+  classes = classes.filter(c=>c.id!==id);
+  populateClassSelects();
+  renderClasses();
+  renderDashboard();
+  toast('Class deleted');
+}
+
+/* ---------------- Reports ---------------- */
+function filteredAttendance(){
+  const classId = document.getElementById('repClass').value;
+  const from = document.getElementById('repFrom').value;
+  const to = document.getElementById('repTo').value;
+  const status = document.getElementById('repStatus').value;
+  return attendance.filter(a=>{
+    const s = students.find(x=>x.id===a.studentId);
+    if(!s) return false;
+    if(classId!=='all' && s.classId!==classId) return false;
+    if(from && a.date<from) return false;
+    if(to && a.date>to) return false;
+    if(status!=='all' && a.status!==status) return false;
+    return true;
+  }).sort((a,b)=> b.date.localeCompare(a.date));
+}
+function renderReports(){
+  const rows = filteredAttendance();
+  const present = rows.filter(r=>r.status==='Present').length;
+  const absent = rows.filter(r=>r.status==='Absent').length;
+  document.getElementById('repPresentCount').textContent = present;
+  document.getElementById('repAbsentCount').textContent = absent;
+  document.getElementById('repRate').textContent = rows.length ? Math.round(present/rows.length*100)+'%' : '—';
+  const body = document.getElementById('reportsBody');
+  if(!rows.length){ body.innerHTML = '<tr><td colspan="4" class="empty">No records match this filter.</td></tr>'; return; }
+  body.innerHTML = rows.slice(0,300).map(r=>{
+    const s = students.find(x=>x.id===r.studentId);
+    return `<tr>
+      <td class="mono">${r.date}</td>
+      <td>${s ? s.name : r.studentId}</td>
+      <td>${s ? className(s.classId) : '—'}</td>
+      <td><span class="pill ${r.status.toLowerCase()}">${r.status}</span></td>
+    </tr>`;
+  }).join('');
+}
+function exportCsv(){
+  const rows = filteredAttendance();
+  let csv = 'Date,Student ID,Student Name,Class,Status\n';
+  rows.forEach(r=>{
+    const s = students.find(x=>x.id===r.studentId);
+    csv += `${r.date},${r.studentId},"${s?s.name:''}","${s?className(s.classId):''}",${r.status}\n`;
+  });
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'attendance_report.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('CSV exported');
+}
+
+/* ---------------- Modal helpers ---------------- */
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+document.querySelectorAll('.overlay').forEach(ov=>{
+  ov.addEventListener('click', e=>{ if(e.target===ov) ov.classList.remove('show'); });
+});
+
+/* Enter key submits login */
+document.getElementById('loginPass').addEventListener('keydown', e=>{ if(e.key==='Enter') attemptLogin(); });
+</script>
+</body>
+</html>
